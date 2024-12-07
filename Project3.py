@@ -1,14 +1,11 @@
+import csv
 import json
 import os
 import pickle
 from bs4 import BeautifulSoup
-import sys
-import pandas as pd
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from tqdm import tqdm
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
-from scipy.sparse import save_npz, load_npz
 import torch
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -128,7 +125,7 @@ def vectorize_documents(documents, vectorizer=None):
     vectors = vectorizer.fit_transform(documents)
     return vectors, vectorizer
 
-def rank_answers(query, answers_vectors, query_vector, vectorizer):
+def rank_answers(answers_vectors, query_vector):
     """Rank answers based on their relevance to the query using precomputed vectors."""
     similarities = cosine_similarity(query_vector, answers_vectors).flatten()
     return similarities
@@ -178,45 +175,61 @@ rewritten_queries_1 = rewrite_queries(queries1, model, tokenizer)
 expanded_queries_2 = expand_queries(queries2, model, tokenizer)
 rewritten_queries_2 = rewrite_queries(queries2, model, tokenizer)
 
+def rank_single_query(query, answers, model_name="Llama-3.2-3B-Instruct"):
+    # Vectorize the query
+    query_vector = answer_vectorizer.transform([query])
+    
+    # Rank answers by similarity to the query
+    similarities = rank_answers(answer_vectors, query_vector)
+    
+    # Sort the answers based on similarity scores
+    ranked_answers = sorted(zip(answers.keys(), similarities), key=lambda x: x[1], reverse=True)
+    
+    # Prepare the ranked results
+    ranked_results = []
+    for rank, (answer_id, score) in enumerate(ranked_answers[:100], start=1):
+        ranked_results.append({
+            "query": query,
+            "answer_id": answer_id,
+            "rank": rank,
+            "score": score,
+            "model_name": model_name
+        })
+
 # Rank answers for rewritten queries
-def top100(changed_queries):
+def rank_all_queries(changed_queries, tsv_name, model_name="Llama-3.2-3B-Instruct"):
   ranked_results = []
   for query_id, query_text in changed_queries.items():
       query_vector = answer_vectorizer.transform([query_text])
       similarities = rank_answers(query_text, answer_vectors, query_vector, answer_vectorizer)
       
       ranked_answers = sorted(zip(answers.keys(), similarities), key=lambda x: x[1], reverse=True)
-      
+      # Get the top 100 ranked answers
       for rank, (answer_id, score) in enumerate(ranked_answers[:100], start=1):
-          ranked_results.append({
-              "query_id": query_id,
-              "answer_id": answer_id,
-              "rank": rank,
-              "score": score,
-          })
-  return ranked_results
+            ranked_results.append({
+                "query_id": query_id,
+                "answer_id": answer_id,
+                "rank": rank,
+                "score": score,
+                "model_name": model_name
+            })
+      # Write the results to a TSV file
+      with open(tsv_name, mode='w', newline='', encoding='utf-8') as tsv_file:
+          tsv_writer = csv.DictWriter(tsv_file, fieldnames=["query_id", "Q0", "answer_id", "rank", "score", "model_name"], delimiter='\t')
+          # Write the ranked results
+          for result in ranked_results:
+              tsv_writer.writerow({
+                  "query_id": result["query_id"],
+                  "Q0": "Q0", 
+                  "answer_id": result["answer_id"],
+                  "rank": result["rank"],
+                  "score": result["score"],
+                  "model_name": result["model_name"]
+              })
 
-rewritten_queries_1_results = top100(rewritten_queries_1)
-rewritten_queries_2_results = top100(rewritten_queries_2)
-expanded_queries_1_results = top100(expanded_queries_1)
-expanded_queries_2_results = top100(expanded_queries_2)
+      print(f"Ranked results saved to {tsv_name}")
 
-
-
-
-
-rewritten_queries_1_results_df = pd.DataFrame(rewritten_queries_1_results)
-rewritten_queries_1_results_df.to_csv("rewritten_queries_1_results.tsv", sep="\t", index=False)
-print("Ranking complete. Results saved to 'ranked_results.tsv'.")
-
-rewritten_queries_2_results_df = pd.DataFrame(rewritten_queries_2_results)
-rewritten_queries_2_results_df.to_csv("rewritten_queries_2_results.tsv", sep="\t", index=False)
-print("Ranking complete. Results saved to 'ranked_results.tsv'.")
-
-expanded_queries_1_results_df = pd.DataFrame(expanded_queries_1_results)
-expanded_queries_1_results_df.to_csv("expanded_queries_1_results.tsv", sep="\t", index=False)
-print("Ranking complete. Results saved to 'ranked_results.tsv'.")
-
-expanded_queries_2_results_df = pd.DataFrame(expanded_queries_2_results)
-expanded_queries_2_results_df.to_csv("expanded_queries_2_results.tsv", sep="\t", index=False)
-print("Ranking complete. Results saved to 'ranked_results.tsv'.")
+rewritten_queries_1_results = rank_all_queries(rewritten_queries_1,"rewritten_topic_1_results.tsv")
+rewritten_queries_2_results = rank_all_queries(rewritten_queries_2,"rewritten_topic_2_results.tsv")
+expanded_queries_1_results = rank_all_queries(expanded_queries_1,"expanded_topic_1_results.tsv")
+expanded_queries_2_results = rank_all_queries(expanded_queries_2,"expanded_topic_2_results.tsv")
