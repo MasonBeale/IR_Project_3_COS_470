@@ -51,11 +51,11 @@ def start_model(model_id, access_token):
         token=access_token
     )
     model.to(device)
-    return tokenizer, model
+    return model, tokenizer
 
 def make_messages_expand(user_query: str):
     messages = [
-        {"role": "system", "content": "You are a puzzle master"},
+        {"role": "system", "content": "You are a puzzle master, only return the keywords for each query"},
         {"role": "user", "content": "For the query: \"a riddle i found. what has one voice but goes on four legs in the morning, two in the afternoon, and three in the evening?\", Find the best keywords to represent the query."},
         {"role": "system", "content": "riddle legs day"},
         {"role": "user", "content": f"For the query \"{user_query}\" Find the best keywords to represent the query."}
@@ -81,7 +81,7 @@ def expand_queries(query_dict: dict, model, tokenizer):
         max_new_tokens=20,
         do_sample=True,
         temperature=0.1,
-        top_p=0.9,
+        top_p=0.1,
         pad_token_id=tokenizer.eos_token_id
         )
         result_text = (tokenizer.decode(outputs[0], skip_special_tokens=True)).splitlines()[-1]
@@ -120,7 +120,6 @@ def ranking(query_dict: dict, answer_dict: dict, run_name: str):
 ###################
 Running everything
 ###################
-
 load answers
 load queries
 make expanded queries
@@ -128,3 +127,9 @@ make rewritten queries
 rank all and make tsv files
 Evaluate in different file
 '''
+model, tokenizer = start_model("meta-llama/Llama-3.2-3B-Instruct", "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")
+
+topics = load_topic_file("topics_1.json")
+one_topic = {"49160": topics["49160"]}
+
+print(expand_queries(one_topic, model, tokenizer))
