@@ -195,6 +195,7 @@ def rank_single_query(query, answers, model_name="Llama-3.2-3B-Instruct"):
             "score": score,
             "model_name": model_name
         })
+    return ranked_results
 
 # Rank answers for rewritten queries
 def rank_all_queries(changed_queries, tsv_name, model_name="Llama-3.2-3B-Instruct"):
