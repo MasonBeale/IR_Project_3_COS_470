@@ -1,3 +1,4 @@
+
 import csv
 import json
 import os
@@ -7,6 +8,10 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 import torch
+
+
+import sys
+
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
@@ -43,7 +48,9 @@ def load_answer_file(answer_filepath):
 # start models and make new queries
 ####################################
 '''
+
 def start_model(model_id, access_token, target_directory):
+
     tokenizer = AutoTokenizer.from_pretrained(
         model_id,
         token=access_token
@@ -62,6 +69,7 @@ def start_model(model_id, access_token, target_directory):
     # Save the model and tokenizer locally
     model.save_pretrained(target_directory)
     tokenizer.save_pretrained(target_directory)
+
     return tokenizer, model
 
 def make_messages_expand(user_query: str):
@@ -124,6 +132,7 @@ def vectorize_documents(documents, vectorizer=None):
         vectorizer = TfidfVectorizer()
     vectors = vectorizer.fit_transform(documents)
     return vectors, vectorizer
+
 
 def rank_answers(answers_vectors, query_vector):
     """Rank answers based on their relevance to the query using precomputed vectors."""
@@ -234,3 +243,17 @@ rewritten_queries_1_results = rank_all_queries(rewritten_queries_1,"rewritten_to
 rewritten_queries_2_results = rank_all_queries(rewritten_queries_2,"rewritten_topic_2_results.tsv")
 expanded_queries_1_results = rank_all_queries(expanded_queries_1,"expanded_topic_1_results.tsv")
 expanded_queries_2_results = rank_all_queries(expanded_queries_2,"expanded_topic_2_results.tsv")
+
+'''
+###################
+Running everything
+###################
+
+load answers
+load queries
+make expanded queries
+make rewritten queries
+rank all and make tsv files
+Evaluate in different file
+'''
+
