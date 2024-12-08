@@ -1,4 +1,3 @@
-
 import csv
 import json
 import os
@@ -72,7 +71,7 @@ def start_model(model_id, access_token, target_directory):
 
 def make_messages_expand(user_query: str):
     messages = [
-        {"role": "system", "content": "You are a puzzle master"},
+        {"role": "system", "content": "You are a puzzle master, only return the keywords for each query."},
         {"role": "user", "content": "For the query: \"a riddle i found. what has one voice but goes on four legs in the morning, two in the afternoon, and three in the evening?\", Find the best keywords to represent the query."},
         {"role": "system", "content": "riddle legs day"},
         {"role": "user", "content": f"For the query \"{user_query}\" Find the best keywords to represent the query."}
@@ -80,10 +79,10 @@ def make_messages_expand(user_query: str):
     return messages
 def make_messages_rewrite(user_query: str):
     messages = [
-        {"role": "system", "content": "You are a puzzle master"},
-        {"role": "user", "content": "For the query \"a riddle i found. what thing has one single voice but also goes on four legs in the morning, two legs in the afternoon, and three legs in the evening?\", rewrite the query to be more clear and concise."},
+        {"role": "system", "content": "You are a puzzle master, rewrite passages you are given, give no explanation to what you changed."},
+        {"role": "user", "content": "For the passage \"a riddle i found. what thing has one single voice but also goes on four legs in the morning, two legs in the afternoon, and three legs in the evening?\", rewrite the passage."},
         {"role": "system", "content": "a riddle: what has one voice but goes on four legs in the morning, two in the afternoon, and three in the evening?"},
-        {"role": "user", "content": f"For the query\"{user_query}\", rewrite the query to be more clear and concise."}
+        {"role": "user", "content": f"For the passage \"{user_query}\", rewrite the passage."}
     ]
     return messages
 
@@ -98,7 +97,7 @@ def expand_queries(query_dict: dict, model, tokenizer):
         max_new_tokens=20,
         do_sample=True,
         temperature=0.1,
-        top_p=0.9,
+        top_p=0.1,
         pad_token_id=tokenizer.eos_token_id
         )
         result_text = (tokenizer.decode(outputs[0], skip_special_tokens=True)).splitlines()[-1]
@@ -113,9 +112,9 @@ def rewrite_queries(query_dict: dict, model, tokenizer):
         inputs = tokenizer(prompt, return_tensors="pt").to(device)
         outputs = model.generate(
         **inputs,
-        max_new_tokens=200,
+        max_new_tokens=100,
         do_sample=True,
-        temperature=0.1,
+        temperature=0.8,
         top_p=0.9,
         pad_token_id=tokenizer.eos_token_id
         )
@@ -243,3 +242,20 @@ expanded_queries_1_results = rank_all_queries(expanded_queries_1,"expanded_topic
 expanded_queries_2_results = rank_all_queries(expanded_queries_2,"expanded_topic_2_results.tsv")
 
 
+'''
+###################
+Running everything
+###################
+load answers
+load queries
+make expanded queries
+make rewritten queries
+rank all and make tsv files
+Evaluate in different file
+'''
+model, tokenizer = start_model("meta-llama/Llama-3.2-3B-Instruct", "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")
+
+topics = load_topic_file("topics_1.json")
+one_topic = {"49160": topics["49160"]}
+
+print(rewrite_queries(one_topic, model, tokenizer))
