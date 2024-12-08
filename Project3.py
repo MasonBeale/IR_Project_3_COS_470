@@ -8,8 +8,6 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 import torch
-
-
 import sys
 
 
@@ -244,16 +242,4 @@ rewritten_queries_2_results = rank_all_queries(rewritten_queries_2,"rewritten_to
 expanded_queries_1_results = rank_all_queries(expanded_queries_1,"expanded_topic_1_results.tsv")
 expanded_queries_2_results = rank_all_queries(expanded_queries_2,"expanded_topic_2_results.tsv")
 
-'''
-###################
-Running everything
-###################
-
-load answers
-load queries
-make expanded queries
-make rewritten queries
-rank all and make tsv files
-Evaluate in different file
-'''
 
