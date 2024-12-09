@@ -1,6 +1,5 @@
 import csv
 import json
-import os
 from bs4 import BeautifulSoup
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from sklearn.metrics.pairwise import cosine_similarity
@@ -149,8 +148,6 @@ def rank_all_queries(queries, tsv_name, run_name):
                 "score": score,
                 "model_name": run_name
             })
-
-
     print(f"Ranked results saved to {tsv_name}")
 
 
