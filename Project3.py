@@ -1,7 +1,6 @@
 import csv
 import json
 import os
-import pickle
 from bs4 import BeautifulSoup
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from sklearn.metrics.pairwise import cosine_similarity
@@ -60,14 +59,6 @@ def start_model(model_id, access_token, target_directory):
         token=access_token
     )
     model.to(device)
-
-    # Create the target directory if it doesn't exist
-    os.makedirs(target_directory, exist_ok=True)
-
-    # Save the model and tokenizer locally
-    model.save_pretrained(target_directory)
-    tokenizer.save_pretrained(target_directory)
-
     return tokenizer, model
 
 def make_messages_expand(user_query: str):
@@ -192,18 +183,22 @@ print(f"Make model: {end-start} seconds")
 
 start = time()
 rewritten_queries_1 = rewrite_queries(queries1, model, tokenizer)
-# expanded_queries_1 = expand_queries(queries1, model, tokenizer)
-
+end = time()
+print(f"make rewritten queries: {end-start} seconds")
+start = time()
+expanded_queries_1 = expand_queries(queries1, model, tokenizer)
+end = time()
+print(f"make expanded queries: {end-start} seconds")
 
 # expanded_queries_2 = expand_queries(queries2, model, tokenizer)
 # rewritten_queries_2 = rewrite_queries(queries2, model, tokenizer)
-end = time()
-print(f"make chnaged queries: {end-start} seconds")
+
 
 start = time()
 rank_all_queries(rewritten_queries_1,"rewritten_topic_1_results.tsv", "Rewritten Queries")
+rank_all_queries(expanded_queries_1,"expanded_topic_1_results.tsv", "Expanded Queries")
+
 # rank_all_queries(rewritten_queries_2,"rewritten_topic_2_results.tsv")
-# rank_all_queries(expanded_queries_1,"expanded_topic_1_results.tsv", "Expanded Queries")
 # rank_all_queries(expanded_queries_2,"expanded_topic_2_results.tsv")
 end = time()
 print(f"ranking: {end-start} seconds")
