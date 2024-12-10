@@ -45,7 +45,7 @@ def load_answer_file(answer_filepath):
 ####################################
 '''
 
-def start_model(model_id, access_token, target_directory):
+def start_model(model_id, access_token):
 
     tokenizer = AutoTokenizer.from_pretrained(
         model_id,
@@ -157,8 +157,8 @@ def rank_all_queries(queries, tsv_name, run_name):
 
 # Load data
 start = time()
-queries1 = load_topic_file("topics_1.json")
-# queries2 = load_topic_file("topics_2.json")
+# queries1 = load_topic_file("topics_1.json")
+queries2 = load_topic_file("topics_2.json")
 answers = load_answer_file("Answers.json")
 end = time()
 print(f"Loading Files: {end-start} seconds")
@@ -174,28 +174,30 @@ print(f"vectorize docs: {end-start} seconds")
 start = time()
 model_id = "meta-llama/Llama-3.2-3B-Instruct"  
 access_token = "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"  
-tokenizer, model = start_model(model_id, access_token, "./model")
+tokenizer, model = start_model(model_id, access_token)
 end = time()
 print(f"Make model: {end-start} seconds")
 
 start = time()
-rewritten_queries_1 = rewrite_queries(queries1, model, tokenizer)
+# rewritten_queries_1 = rewrite_queries(queries1, model, tokenizer)
+# rewritten_queries_2 = rewrite_queries(queries2, model, tokenizer)
 end = time()
 print(f"make rewritten queries: {end-start} seconds")
 start = time()
-expanded_queries_1 = expand_queries(queries1, model, tokenizer)
+# expanded_queries_1 = expand_queries(queries1, model, tokenizer)
+expanded_queries_2 = expand_queries(queries2, model, tokenizer)
 end = time()
 print(f"make expanded queries: {end-start} seconds")
 
-# expanded_queries_2 = expand_queries(queries2, model, tokenizer)
-# rewritten_queries_2 = rewrite_queries(queries2, model, tokenizer)
+
+
 
 
 start = time()
-rank_all_queries(rewritten_queries_1,"rewritten_topic_1_results.tsv", "Rewritten Queries")
-rank_all_queries(expanded_queries_1,"expanded_topic_1_results.tsv", "Expanded Queries")
+# rank_all_queries(rewritten_queries_1,"rewritten_topic_1_results.tsv", "Rewritten Queries")
+# rank_all_queries(expanded_queries_1,"expanded_topic_1_results.tsv", "Expanded Queries")
 
-# rank_all_queries(rewritten_queries_2,"rewritten_topic_2_results.tsv")
-# rank_all_queries(expanded_queries_2,"expanded_topic_2_results.tsv")
+# rank_all_queries(rewritten_queries_2,"rewritten_topic_2_results.tsv", "Rewritten Queries")
+rank_all_queries(expanded_queries_2,"expanded_topic_2_results.tsv", "Expanded Queries")
 end = time()
 print(f"ranking: {end-start} seconds")
