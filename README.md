@@ -79,7 +79,7 @@ Calculates cosine similarity between query and answer vectors to rank answers. S
 ### Example Commands
 Run the script:
 ```bash
-python Project3.py
+python Project3.py topics_1.json topics_2.json Answers.json
 ```
 
 Expected Outputs:
