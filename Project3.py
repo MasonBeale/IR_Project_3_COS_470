@@ -6,24 +6,16 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 import torch
 import sys
-from time import time
-
-
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(device)
-
-'''
-############################
-# Load Files and preprocess
-############################
-'''
 
 def remove_tags(soup):
+    '''remove HTML tags'''
     for data in soup(['style', 'script']):
         data.decompose()
     return ' '.join(soup.stripped_strings)
 
 def load_topic_file(topic_filepath):
+    '''load a topic file into a dictionary'''
     queries = json.load(open(topic_filepath, encoding='utf-8'))
     result = {}
     for item in queries:
@@ -33,20 +25,15 @@ def load_topic_file(topic_filepath):
     return result
 
 def load_answer_file(answer_filepath):
+  '''load an answer file into a dictionary'''
   lst = json.load(open(answer_filepath, encoding='utf-8'))
   result = {}
   for doc in lst:
     result[doc['Id']] = remove_tags(BeautifulSoup(doc['Text'], "html.parser")).lower()
   return result
 
-'''
-####################################
-# start models and make new queries
-####################################
-'''
-
 def start_model(model_id, access_token):
-
+    '''makes a model and a tokenizer'''
     tokenizer = AutoTokenizer.from_pretrained(
         model_id,
         token=access_token
@@ -61,6 +48,7 @@ def start_model(model_id, access_token):
     return tokenizer, model
 
 def make_messages_expand(user_query: str):
+    '''creates a set of messages for a model to expand queries'''
     messages = [
         {"role": "system", "content": "You are a puzzle master, only return the keywords for each query."},
         {"role": "user", "content": "For the query: \"a riddle i found. what has one voice but goes on four legs in the morning, two in the afternoon, and three in the evening?\", Find the best keywords to represent the query."},
@@ -68,7 +56,9 @@ def make_messages_expand(user_query: str):
         {"role": "user", "content": f"For the query \"{user_query}\" Find the best keywords to represent the query."}
     ]
     return messages
+
 def make_messages_rewrite(user_query: str):
+    '''creates a set of messages for a model to rewrite queries'''
     messages = [
         {"role": "system", "content": "You are a puzzle master, rewrite passages you are given, give no explanation to what you changed."},
         {"role": "user", "content": "For the passage \"a riddle i found. what thing has one single voice but also goes on four legs in the morning, two legs in the afternoon, and three legs in the evening?\", rewrite the passage."},
@@ -78,6 +68,7 @@ def make_messages_rewrite(user_query: str):
     return messages
 
 def expand_queries(query_dict: dict, model, tokenizer):
+    '''takes a dict of queries and adds some keywords for query expansion'''
     expanded_queries_dict = {}
     for query in query_dict:
         messages = make_messages_expand(query_dict[query])
@@ -96,8 +87,9 @@ def expand_queries(query_dict: dict, model, tokenizer):
     return expanded_queries_dict
 
 def rewrite_queries(query_dict: dict, model, tokenizer):
-   rewritten_queries_dict = {}
-   for query in query_dict:
+    '''takes a dict of queries and rewrites them'''
+    rewritten_queries_dict = {}
+    for query in query_dict:
         messages = make_messages_rewrite(query_dict[query])
         prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         inputs = tokenizer(prompt, return_tensors="pt").to(device)
@@ -111,30 +103,26 @@ def rewrite_queries(query_dict: dict, model, tokenizer):
         )
         result_text = (tokenizer.decode(outputs[0], skip_special_tokens=True)).splitlines()[-1]
         rewritten_queries_dict[query] = f"{result_text}"
-   return rewritten_queries_dict
+    return rewritten_queries_dict
 
-
-def vectorize_documents(documents, vectorizer=None):
-    """Vectorize the documents (queries or answers) using TF-IDF."""
-    if vectorizer is None:
-        vectorizer = TfidfVectorizer()
+def vectorize_documents(documents, vectorizer):
+    '''takes a set of documents and turns them into a vector'''
     vectors = vectorizer.fit_transform(documents)
-    return vectors, vectorizer
-
+    return vectors
 
 def rank_answers(answers_vectors, query_vector):
-    """Rank answers based on their relevance to the query using precomputed vectors."""
+    '''takes in multiple answer vectors and one query vector and calculates the cosine simularity'''
     similarities = cosine_similarity(query_vector, answers_vectors).flatten()
     return similarities
 
 
-# Rank answers for rewritten queries
-def rank_all_queries(queries, tsv_name, run_name):
+def rank_all_queries(queries, answer_vectors, tsv_name, run_name, vectorizer):
+  '''takes in queries and vectors and ranks to top 100, then adds them to a tsv'''
   with open(tsv_name, mode='w', newline='', encoding='utf-8') as tsv_file:
     tsv_writer = csv.DictWriter(tsv_file, fieldnames=["query_id", "Q0", "answer_id", "rank", "score", "model_name"], delimiter='\t')
 
     for query_id, query_text in queries.items():
-        query_vector = answer_vectorizer.transform([query_text])
+        query_vector = vectorizer.transform([query_text])
         similarities = rank_answers(answer_vectors, query_vector)
         
         ranked_answers = sorted(zip(answers.keys(), similarities), key=lambda x: x[1], reverse=True)
@@ -150,54 +138,29 @@ def rank_all_queries(queries, tsv_name, run_name):
             })
     print(f"Ranked results saved to {tsv_name}")
 
-
-############################
-# Running everything
-############################
-
 # Load data
-start = time()
-# queries1 = load_topic_file("topics_1.json")
-queries2 = load_topic_file("topics_2.json")
-answers = load_answer_file("Answers.json")
-end = time()
-print(f"Loading Files: {end-start} seconds")
+queries1 = load_topic_file(sys.argv[0])
+queries2 = load_topic_file(sys.argv[1])
+answers = load_answer_file(sys.argv[2])
 
 # Precompute vectors for answers
-start = time()
-answer_bodies = list(answers.values())
-answer_vectors, answer_vectorizer = vectorize_documents(answer_bodies)
-end = time()
-print(f"vectorize docs: {end-start} seconds")
+answer_texts = list(answers.values())
+vectorizer = TfidfVectorizer()
+a_vecs = vectorize_documents(answer_texts, vectorizer)
 
 # Expand and rewrite queries using LLM
-start = time()
 model_id = "meta-llama/Llama-3.2-3B-Instruct"  
 access_token = "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"  
 tokenizer, model = start_model(model_id, access_token)
-end = time()
-print(f"Make model: {end-start} seconds")
 
-start = time()
-# rewritten_queries_1 = rewrite_queries(queries1, model, tokenizer)
+# Making new queries
+rewritten_queries_1 = rewrite_queries(queries1, model, tokenizer)
 rewritten_queries_2 = rewrite_queries(queries2, model, tokenizer)
-end = time()
-print(f"make rewritten queries: {end-start} seconds")
-start = time()
-# expanded_queries_1 = expand_queries(queries1, model, tokenizer)
-# expanded_queries_2 = expand_queries(queries2, model, tokenizer)
-end = time()
-print(f"make expanded queries: {end-start} seconds")
+expanded_queries_1 = expand_queries(queries1, model, tokenizer)
+expanded_queries_2 = expand_queries(queries2, model, tokenizer)
 
-
-
-
-
-start = time()
-# rank_all_queries(rewritten_queries_1,"rewritten_topic_1_results.tsv", "Rewritten Queries")
-# rank_all_queries(expanded_queries_1,"expanded_topic_1_results.tsv", "Expanded Queries")
-
-rank_all_queries(rewritten_queries_2,"rewritten_topic_2_results.tsv", "Rewritten Queries")
-# rank_all_queries(expanded_queries_2,"expanded_topic_2_results.tsv", "Expanded Queries")
-end = time()
-print(f"ranking: {end-start} seconds")
+# Ranking all queries
+rank_all_queries(rewritten_queries_1, a_vecs, "rewritten_topic_1.tsv", "Rewritten Queries", vectorizer)
+rank_all_queries(expanded_queries_1, a_vecs, "expanded_topic_1.tsv", "Expanded Queries", vectorizer)
+rank_all_queries(rewritten_queries_2, a_vecs, "rewritten_topic_2.tsv", "Rewritten Queries", vectorizer)
+rank_all_queries(expanded_queries_2, a_vecs, "expanded_topic_2.tsv", "Expanded Queries", vectorizer)
