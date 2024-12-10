@@ -139,9 +139,9 @@ def rank_all_queries(queries, answer_vectors, tsv_name, run_name, vectorizer):
     print(f"Ranked results saved to {tsv_name}")
 
 # Load data
-queries1 = load_topic_file(sys.argv[0])
-queries2 = load_topic_file(sys.argv[1])
-answers = load_answer_file(sys.argv[2])
+queries1 = load_topic_file(sys.argv[1])
+queries2 = load_topic_file(sys.argv[2])
+answers = load_answer_file(sys.argv[3])
 
 # Precompute vectors for answers
 answer_texts = list(answers.values())
